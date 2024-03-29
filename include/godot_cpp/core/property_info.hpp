@@ -68,6 +68,29 @@ struct PropertyInfo {
 
 	PropertyInfo(GDExtensionVariantType p_type, const StringName &p_name, PropertyHint p_hint = PROPERTY_HINT_NONE, const String &p_hint_string = "", uint32_t p_usage = PROPERTY_USAGE_DEFAULT, const StringName &p_class_name = "") :
 			PropertyInfo((Variant::Type)p_type, p_name, p_hint, p_hint_string, p_usage, p_class_name) {}
+
+	PropertyInfo(const GDExtensionPropertyInfo *p_info) :
+			PropertyInfo(p_info->type, *reinterpret_cast<StringName *>(p_info->name), (PropertyHint)p_info->hint, *reinterpret_cast<String *>(p_info->hint_string), p_info->usage, *reinterpret_cast<StringName *>(p_info->class_name)) {}
+
+	void _update(GDExtensionPropertyInfo *p_info) {
+		p_info->type = (GDExtensionVariantType)type;
+		*(reinterpret_cast<StringName *>(p_info->name)) = name;
+		p_info->hint = hint;
+		*(reinterpret_cast<String *>(p_info->hint_string)) = hint_string;
+		p_info->usage = usage;
+		*(reinterpret_cast<StringName *>(p_info->class_name)) = class_name;
+	}
+
+	GDExtensionPropertyInfo _to_gdextension() const {
+		return {
+			(GDExtensionVariantType)type,
+			name._native_ptr(),
+			class_name._native_ptr(),
+			hint,
+			hint_string._native_ptr(),
+			usage,
+		};
+	}
 };
 
 } // namespace godot

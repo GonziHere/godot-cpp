@@ -148,7 +148,7 @@ template <class T>
 struct VariantCasterAndValidate {
 	static _FORCE_INLINE_ T cast(const Variant **p_args, uint32_t p_arg_idx, GDExtensionCallError &r_error) {
 		GDExtensionVariantType argtype = GDExtensionVariantType(GetTypeInfo<T>::VARIANT_TYPE);
-		if (!internal::gde_interface->variant_can_convert_strict(static_cast<GDExtensionVariantType>(p_args[p_arg_idx]->get_type()), argtype) ||
+		if (!internal::gdextension_interface_variant_can_convert_strict(static_cast<GDExtensionVariantType>(p_args[p_arg_idx]->get_type()), argtype) ||
 				!VariantObjectClassChecker<T>::check(p_args[p_arg_idx])) {
 			r_error.error = GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT;
 			r_error.argument = p_arg_idx;
@@ -163,7 +163,7 @@ template <class T>
 struct VariantCasterAndValidate<T &> {
 	static _FORCE_INLINE_ T cast(const Variant **p_args, uint32_t p_arg_idx, GDExtensionCallError &r_error) {
 		GDExtensionVariantType argtype = GDExtensionVariantType(GetTypeInfo<T>::VARIANT_TYPE);
-		if (!internal::gde_interface->variant_can_convert_strict(static_cast<GDExtensionVariantType>(p_args[p_arg_idx]->get_type()), argtype) ||
+		if (!internal::gdextension_interface_variant_can_convert_strict(static_cast<GDExtensionVariantType>(p_args[p_arg_idx]->get_type()), argtype) ||
 				!VariantObjectClassChecker<T>::check(p_args[p_arg_idx])) {
 			r_error.error = GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT;
 			r_error.argument = p_arg_idx;
@@ -178,7 +178,7 @@ template <class T>
 struct VariantCasterAndValidate<const T &> {
 	static _FORCE_INLINE_ T cast(const Variant **p_args, uint32_t p_arg_idx, GDExtensionCallError &r_error) {
 		GDExtensionVariantType argtype = GDExtensionVariantType(GetTypeInfo<T>::VARIANT_TYPE);
-		if (!internal::gde_interface->variant_can_convert_strict(static_cast<GDExtensionVariantType>(p_args[p_arg_idx]->get_type()), argtype) ||
+		if (!internal::gdextension_interface_variant_can_convert_strict(static_cast<GDExtensionVariantType>(p_args[p_arg_idx]->get_type()), argtype) ||
 				!VariantObjectClassChecker<T>::check(p_args[p_arg_idx])) {
 			r_error.error = GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT;
 			r_error.argument = p_arg_idx;
@@ -277,11 +277,65 @@ void call_with_variant_args_retc_helper(T *p_instance, R (T::*p_method)(P...) co
 }
 
 template <class T, class... P>
+void call_with_variant_args(T *p_instance, void (T::*p_method)(P...), const Variant **p_args, int p_argcount, GDExtensionCallError &r_error) {
+#ifdef DEBUG_ENABLED
+	if ((size_t)p_argcount > sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+
+	if ((size_t)p_argcount < sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+#endif
+	call_with_variant_args_helper<T, P...>(p_instance, p_method, p_args, r_error, BuildIndexSequence<sizeof...(P)>{});
+}
+
+template <class T, class R, class... P>
+void call_with_variant_args_ret(T *p_instance, R (T::*p_method)(P...), const Variant **p_args, int p_argcount, Variant &r_ret, GDExtensionCallError &r_error) {
+#ifdef DEBUG_ENABLED
+	if ((size_t)p_argcount > sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+
+	if ((size_t)p_argcount < sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+#endif
+	call_with_variant_args_ret_helper<T, R, P...>(p_instance, p_method, p_args, r_ret, r_error, BuildIndexSequence<sizeof...(P)>{});
+}
+
+template <class T, class R, class... P>
+void call_with_variant_args_retc(T *p_instance, R (T::*p_method)(P...) const, const Variant **p_args, int p_argcount, Variant &r_ret, GDExtensionCallError &r_error) {
+#ifdef DEBUG_ENABLED
+	if ((size_t)p_argcount > sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+
+	if ((size_t)p_argcount < sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+#endif
+	call_with_variant_args_retc_helper<T, R, P...>(p_instance, p_method, p_args, r_ret, r_error, BuildIndexSequence<sizeof...(P)>{});
+}
+
+template <class T, class... P>
 void call_with_variant_args_dv(T *p_instance, void (T::*p_method)(P...), const GDExtensionConstVariantPtr *p_args, int p_argcount, GDExtensionCallError &r_error, const std::vector<Variant> &default_values) {
 #ifdef DEBUG_ENABLED
 	if ((size_t)p_argcount > sizeof...(P)) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
-		r_error.argument = (int32_t)sizeof...(P);
+		r_error.expected = (int32_t)sizeof...(P);
 		return;
 	}
 #endif
@@ -292,7 +346,7 @@ void call_with_variant_args_dv(T *p_instance, void (T::*p_method)(P...), const G
 #ifdef DEBUG_ENABLED
 	if (missing > dvs) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = (int32_t)sizeof...(P);
+		r_error.expected = (int32_t)sizeof...(P);
 		return;
 	}
 #endif
@@ -316,7 +370,7 @@ void call_with_variant_argsc_dv(T *p_instance, void (T::*p_method)(P...) const, 
 #ifdef DEBUG_ENABLED
 	if ((size_t)p_argcount > sizeof...(P)) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
-		r_error.argument = (int32_t)sizeof...(P);
+		r_error.expected = (int32_t)sizeof...(P);
 		return;
 	}
 #endif
@@ -327,7 +381,7 @@ void call_with_variant_argsc_dv(T *p_instance, void (T::*p_method)(P...) const, 
 #ifdef DEBUG_ENABLED
 	if (missing > dvs) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = (int32_t)sizeof...(P);
+		r_error.expected = (int32_t)sizeof...(P);
 		return;
 	}
 #endif
@@ -351,7 +405,7 @@ void call_with_variant_args_ret_dv(T *p_instance, R (T::*p_method)(P...), const 
 #ifdef DEBUG_ENABLED
 	if ((size_t)p_argcount > sizeof...(P)) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
-		r_error.argument = (int32_t)sizeof...(P);
+		r_error.expected = (int32_t)sizeof...(P);
 		return;
 	}
 #endif
@@ -362,7 +416,7 @@ void call_with_variant_args_ret_dv(T *p_instance, R (T::*p_method)(P...), const 
 #ifdef DEBUG_ENABLED
 	if (missing > dvs) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = (int32_t)sizeof...(P);
+		r_error.expected = (int32_t)sizeof...(P);
 		return;
 	}
 #endif
@@ -386,7 +440,7 @@ void call_with_variant_args_retc_dv(T *p_instance, R (T::*p_method)(P...) const,
 #ifdef DEBUG_ENABLED
 	if ((size_t)p_argcount > sizeof...(P)) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
-		r_error.argument = (int32_t)sizeof...(P);
+		r_error.expected = (int32_t)sizeof...(P);
 		return;
 	}
 #endif
@@ -397,7 +451,7 @@ void call_with_variant_args_retc_dv(T *p_instance, R (T::*p_method)(P...) const,
 #ifdef DEBUG_ENABLED
 	if (missing > dvs) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = (int32_t)sizeof...(P);
+		r_error.expected = (int32_t)sizeof...(P);
 		return;
 	}
 #endif
@@ -498,7 +552,7 @@ void call_with_variant_args_static_dv(void (*p_method)(P...), const GDExtensionC
 #ifdef DEBUG_ENABLED
 	if ((size_t)p_argcount > sizeof...(P)) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
-		r_error.argument = sizeof...(P);
+		r_error.expected = sizeof...(P);
 		return;
 	}
 #endif
@@ -509,7 +563,7 @@ void call_with_variant_args_static_dv(void (*p_method)(P...), const GDExtensionC
 #ifdef DEBUG_ENABLED
 	if (missing > dvs) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = sizeof...(P);
+		r_error.expected = sizeof...(P);
 		return;
 	}
 #endif
@@ -538,6 +592,42 @@ void call_with_ptr_args_static_method(void (*p_method)(P...), const GDExtensionC
 	call_with_ptr_args_static_method_helper<P...>(p_method, p_args, BuildIndexSequence<sizeof...(P)>{});
 }
 
+template <class R, class... P>
+void call_with_variant_args_static_ret(R (*p_method)(P...), const Variant **p_args, int p_argcount, Variant &r_ret, GDExtensionCallError &r_error) {
+#ifdef DEBUG_ENABLED
+	if ((size_t)p_argcount > sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+
+	if ((size_t)p_argcount < sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+#endif
+	call_with_variant_args_static_ret<R, P...>(p_method, p_args, r_ret, r_error, BuildIndexSequence<sizeof...(P)>{});
+}
+
+template <class... P>
+void call_with_variant_args_static_ret(void (*p_method)(P...), const Variant **p_args, int p_argcount, Variant &r_ret, GDExtensionCallError &r_error) {
+#ifdef DEBUG_ENABLED
+	if ((size_t)p_argcount > sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+
+	if ((size_t)p_argcount < sizeof...(P)) {
+		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
+		r_error.expected = (int32_t)sizeof...(P);
+		return;
+	}
+#endif
+	call_with_variant_args_static<P...>(p_method, p_args, r_error, BuildIndexSequence<sizeof...(P)>{});
+}
+
 template <class R, class... P, size_t... Is>
 void call_with_variant_args_static_ret(R (*p_method)(P...), const Variant **p_args, Variant &r_ret, GDExtensionCallError &r_error, IndexSequence<Is...>) {
 	r_error.error = GDEXTENSION_CALL_OK;
@@ -554,7 +644,7 @@ void call_with_variant_args_static_ret_dv(R (*p_method)(P...), const GDExtension
 #ifdef DEBUG_ENABLED
 	if ((size_t)p_argcount > sizeof...(P)) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS;
-		r_error.argument = sizeof...(P);
+		r_error.expected = sizeof...(P);
 		return;
 	}
 #endif
@@ -565,7 +655,7 @@ void call_with_variant_args_static_ret_dv(R (*p_method)(P...), const GDExtension
 #ifdef DEBUG_ENABLED
 	if (missing > dvs) {
 		r_error.error = GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = sizeof...(P);
+		r_error.expected = sizeof...(P);
 		return;
 	}
 #endif

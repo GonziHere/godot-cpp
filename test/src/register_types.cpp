@@ -25,7 +25,11 @@ void initialize_example_module(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<ExampleMin>();
 	ClassDB::register_class<Example>();
 	ClassDB::register_class<ExampleVirtual>(true);
-	ClassDB::register_abstract_class<ExampleAbstract>();
+	ClassDB::register_abstract_class<ExampleAbstractBase>();
+	ClassDB::register_class<ExampleConcrete>();
+	ClassDB::register_class<ExampleBase>();
+	ClassDB::register_class<ExampleChild>();
+	ClassDB::register_runtime_class<ExampleRuntime>();
 }
 
 void uninitialize_example_module(ModuleInitializationLevel p_level) {
@@ -36,8 +40,8 @@ void uninitialize_example_module(ModuleInitializationLevel p_level) {
 
 extern "C" {
 // Initialization.
-GDExtensionBool GDE_EXPORT example_library_init(const GDExtensionInterface *p_interface, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) {
-	godot::GDExtensionBinding::InitObject init_obj(p_interface, p_library, r_initialization);
+GDExtensionBool GDE_EXPORT example_library_init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) {
+	godot::GDExtensionBinding::InitObject init_obj(p_get_proc_address, p_library, r_initialization);
 
 	init_obj.register_initializer(initialize_example_module);
 	init_obj.register_terminator(uninitialize_example_module);

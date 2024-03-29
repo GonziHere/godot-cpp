@@ -73,8 +73,19 @@ struct _NO_DISCARD_ Vector4i {
 	Vector4i::Axis min_axis_index() const;
 	Vector4i::Axis max_axis_index() const;
 
+	Vector4i min(const Vector4i &p_vector4i) const {
+		return Vector4i(MIN(x, p_vector4i.x), MIN(y, p_vector4i.y), MIN(z, p_vector4i.z), MIN(w, p_vector4i.w));
+	}
+
+	Vector4i max(const Vector4i &p_vector4i) const {
+		return Vector4i(MAX(x, p_vector4i.x), MAX(y, p_vector4i.y), MAX(z, p_vector4i.z), MAX(w, p_vector4i.w));
+	}
+
 	_FORCE_INLINE_ int64_t length_squared() const;
 	_FORCE_INLINE_ double length() const;
+
+	_FORCE_INLINE_ int64_t distance_squared_to(const Vector4i &p_to) const;
+	_FORCE_INLINE_ double distance_to(const Vector4i &p_to) const;
 
 	_FORCE_INLINE_ void zero();
 
@@ -130,6 +141,14 @@ int64_t Vector4i::length_squared() const {
 
 double Vector4i::length() const {
 	return Math::sqrt((double)length_squared());
+}
+
+int64_t Vector4i::distance_squared_to(const Vector4i &p_to) const {
+	return (p_to - *this).length_squared();
+}
+
+double Vector4i::distance_to(const Vector4i &p_to) const {
+	return (p_to - *this).length();
 }
 
 Vector4i Vector4i::abs() const {
